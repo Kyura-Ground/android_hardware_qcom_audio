@@ -4177,8 +4177,9 @@ int start_output_stream(struct stream_out *out)
             }
         }
 
-        platform_set_stream_channel_map(adev->platform, out->channel_mask,
-               out->pcm_device_id, -1, &out->channel_map_param.channel_map[0]);
+        if (out->realtime)
+            platform_set_stream_channel_map(adev->platform, out->channel_mask,
+                   out->pcm_device_id, -1, &out->channel_map_param.channel_map[0]);
 
         out->pcm = pcm_open_prepare_helper(adev->snd_card, out->pcm_device_id,
                                        flags, pcm_open_retry_count,
@@ -4187,6 +4188,10 @@ int start_output_stream(struct stream_out *out)
            ret = -EIO;
            goto error_open;
         }
+
+        if (!out->realtime)
+            platform_set_stream_channel_map(adev->platform, out->channel_mask,
+                   out->pcm_device_id, -1, &out->channel_map_param.channel_map[0]);
 
         if (is_haptic_usecase) {
             adev->haptic_pcm = pcm_open_prepare_helper(adev->snd_card,
