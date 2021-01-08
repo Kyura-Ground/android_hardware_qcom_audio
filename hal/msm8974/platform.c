@@ -3976,6 +3976,12 @@ acdb_init_fail:
                     strdup("TERT_MI2S_RX Channels");
                 free(default_rx_backend);
                 default_rx_backend = strdup("TERT_MI2S_RX");
+
+                /* X00TD's TFA speaker requires a 16-bit backend format. */
+                char device_name[PROPERTY_VALUE_MAX] = {0};
+                property_get("ro.product.vendor.device", device_name, "");
+                if (!strcmp(device_name, "X00TD"))
+                    platform_set_snd_device_bit_width(SND_DEVICE_OUT_SPEAKER, 16);
             }
         } else {
             my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].bitwidth_mixer_ctl =
