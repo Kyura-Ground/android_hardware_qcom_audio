@@ -3919,9 +3919,10 @@ static int stop_output_stream(struct stream_out *out)
     return ret;
 }
 
-struct pcm* pcm_open_prepare_helper(unsigned int snd_card, unsigned int pcm_device_id,
-                                   unsigned int flags, unsigned int pcm_open_retry_count,
-                                   struct pcm_config *config)
+static struct pcm* pcm_open_prepare_helper_with_channel_map(
+        unsigned int snd_card, unsigned int pcm_device_id,
+        unsigned int flags, unsigned int pcm_open_retry_count,
+        struct pcm_config *config, struct stream_out *out)
 {
     struct pcm* pcm = NULL;
 
@@ -3944,6 +3945,11 @@ struct pcm* pcm_open_prepare_helper(unsigned int snd_card, unsigned int pcm_devi
     }
 
     if (pcm_is_ready(pcm)) {
+        /* Ordinary PCM requires an open substream before setting its map. */
+        if (out != NULL && !out->realtime) {
+            platform_set_stream_channel_map(out->dev->platform, out->channel_mask,
+                    pcm_device_id, -1, &out->channel_map_param.channel_map[0]);
+        }
         int ret = pcm_prepare(pcm);
         if (ret < 0) {
             ALOGE("%s: pcm_prepare returned %d", __func__, ret);
@@ -3953,6 +3959,14 @@ struct pcm* pcm_open_prepare_helper(unsigned int snd_card, unsigned int pcm_devi
     }
 
     return pcm;
+}
+
+struct pcm* pcm_open_prepare_helper(unsigned int snd_card, unsigned int pcm_device_id,
+                                   unsigned int flags, unsigned int pcm_open_retry_count,
+                                   struct pcm_config *config)
+{
+    return pcm_open_prepare_helper_with_channel_map(snd_card, pcm_device_id,
+            flags, pcm_open_retry_count, config, NULL);
 }
 
 int start_output_stream(struct stream_out *out)
@@ -4181,17 +4195,13 @@ int start_output_stream(struct stream_out *out)
             platform_set_stream_channel_map(adev->platform, out->channel_mask,
                    out->pcm_device_id, -1, &out->channel_map_param.channel_map[0]);
 
-        out->pcm = pcm_open_prepare_helper(adev->snd_card, out->pcm_device_id,
+        out->pcm = pcm_open_prepare_helper_with_channel_map(adev->snd_card, out->pcm_device_id,
                                        flags, pcm_open_retry_count,
-                                       &(out->config));
+                                       &(out->config), out);
         if (out->pcm == NULL) {
            ret = -EIO;
            goto error_open;
         }
-
-        if (!out->realtime)
-            platform_set_stream_channel_map(adev->platform, out->channel_mask,
-                   out->pcm_device_id, -1, &out->channel_map_param.channel_map[0]);
 
         if (is_haptic_usecase) {
             adev->haptic_pcm = pcm_open_prepare_helper(adev->snd_card,
