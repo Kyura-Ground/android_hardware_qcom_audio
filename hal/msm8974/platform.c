@@ -3958,6 +3958,25 @@ acdb_init_fail:
             if (default_rx_backend)
                 free(default_rx_backend);
             default_rx_backend = strdup("INT4_MI2S_RX");
+
+            /* ASUS SDM660 TFA speakers use TERT MI2S, not the WSA backend. */
+            if (!strncmp(snd_card_name, "sdm660", strlen("sdm660")) &&
+                !mixer_get_ctl_by_name(adev->mixer, "INT4_MI2S_RX Format") &&
+                mixer_get_ctl_by_name(adev->mixer, "TERT_MI2S_RX Format") &&
+                mixer_get_ctl_by_name(adev->mixer, "TERT_MI2S_RX SampleRate") &&
+                mixer_get_ctl_by_name(adev->mixer, "TERT_MI2S_RX Channels")) {
+                free(my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].bitwidth_mixer_ctl);
+                my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].bitwidth_mixer_ctl =
+                    strdup("TERT_MI2S_RX Format");
+                free(my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].samplerate_mixer_ctl);
+                my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].samplerate_mixer_ctl =
+                    strdup("TERT_MI2S_RX SampleRate");
+                free(my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].channels_mixer_ctl);
+                my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].channels_mixer_ctl =
+                    strdup("TERT_MI2S_RX Channels");
+                free(default_rx_backend);
+                default_rx_backend = strdup("TERT_MI2S_RX");
+            }
         } else {
             my_data->current_backend_cfg[DEFAULT_CODEC_BACKEND].bitwidth_mixer_ctl =
                 strdup("MI2S_RX Format");
